@@ -1,5 +1,5 @@
 ViewLyricsOpenSearcher
 ====
 
-Open searcher for lyrics ".LRC"/".TXT" files, that uses Crintsoft's MiniLyrics database ("ViewLyrics.com")
+Open searcher for lyrics files (".lrc" and ".txt") , stored in Crintsoft's MiniLyrics server ("ViewLyrics.com").
 Use this project as you want.
