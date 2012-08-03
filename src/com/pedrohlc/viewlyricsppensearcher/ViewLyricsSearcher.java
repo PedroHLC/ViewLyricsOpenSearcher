@@ -4,21 +4,20 @@ package com.pedrohlc.viewlyricsppensearcher;
  * @title		ViewLyricsSearcher
  * @author		PedroHLC
  * @email		plaracampos@hotmail.com
- * @date		(DD-MM-YYYY) FR: 02-08-2012 02-06-2012 LU: 02-08-2012
- * @version	0.4.01-alpha
- * @works		Search.
- * @Needs		Decrypt results list.
- * @annotations This was made in Java to be easily ported to any other language.
- * 
+ * @date		(DD-MM-YYYY) FirstRls: 02-08-2012 02-06-2012 LastUpd: 03-08-2012
+ * @version	0.9.01-beta
+ * @works		Search and get results
  */
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Vector;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -47,7 +46,7 @@ public class ViewLyricsSearcher {
 	 * Search function
 	 */
 	
-	public static ArrayList<LyricInfo> search(String artist, String title) throws ClientProtocolException, IOException {
+	public static ArrayList<LyricInfo> search(String artist, String title) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
 		// Create XMLQuery String
 		String searchQuery = String.format(searchQueryBase, artist, title, clientTag); //TODO Lean what is better: format, replace or concatenate.
 		
@@ -60,7 +59,7 @@ public class ViewLyricsSearcher {
 		client.getParams().setBooleanParameter("http.protocol.expect-continue", true);
 		
 		// Define POST Entity as a magic encoded version of XMLQuery
-		request.setEntity(new ByteArrayEntity(magic(searchQuery.getBytes("UTF-8"))));
+		request.setEntity(new ByteArrayEntity(assembleQuery(searchQuery.getBytes("UTF-8"))));
 		
 		// Send Request
 		HttpResponse response = client.execute(request);
@@ -69,90 +68,154 @@ public class ViewLyricsSearcher {
 		BufferedReader rd = new BufferedReader
 			(new InputStreamReader(response.getEntity().getContent()));
 		
-		// Temporary way to show the result
-		String line = "";
+		// Get full result
+		String full = "", line = null;
 		while ((line = rd.readLine()) != null) {
-			System.out.println(line);
+			full += line;
 		}
 		
-		// TODO Decrypt the results and return it
-		return null;
+		// Decrypt the results, store it, and return it
+		return decryptResult(full);
 	}
 	
 	/*
 	 * Add MD5 and Encrypts Search Query
 	 */
 	
-	private static byte[] magic(byte[] value){	
-		try {
-			// Create the variable POG to be used in a dirt code
-			byte[] pog = new byte[value.length + magickey.length]; //TODO Give a better name then POG
-			
-			// POG = XMLQuery + Magic Key
-			System.arraycopy(value, 0, pog, 0, value.length);
-			System.arraycopy(magickey, 0, pog, value.length, magickey.length);
-			
-			// POG is hashed using MD5
-			byte[] pog_md5 = MessageDigest.getInstance("MD5").digest(pog);
-			
-			//TODO Thing about using encryption or k as 0...
-			// Prepare encryption key
-			int j = 0;
-			for (int i = 0; i < value.length; i++){
-				j += value[i];
-			}
-			int k = (byte)(j / value.length);
-			
-			// Value is encrypted
-			for (int m = 0; m < value.length; m++)
-				value[m] = (byte) (k ^ value[m]);
-			
-			// Prepare result code
-			ByteArrayOutputStream result = new ByteArrayOutputStream();
-			
-			// Write Header
-			result.write(0x02);
-			result.write(k);
-			result.write(0x04);
-			result.write(0x00);
-			result.write(0x00);
-			result.write(0x00);
-			
-			// Write Generated MD5 of POG problaby to be used in a search cache
-			result.write(pog_md5);
-			
-			// Write encrypted value
-			result.write(value);
-			
-			// Return magic encoded query
-			return result.toByteArray();
-		} catch (NoSuchAlgorithmException e) { //TODO Create a better Exception code
-			e.printStackTrace();
-			return null;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+	private static byte[] assembleQuery(byte[] value) throws NoSuchAlgorithmException, IOException{	
+		// Create the variable POG to be used in a dirt code
+		byte[] pog = new byte[value.length + magickey.length]; //TODO Give a better name then POG
+		
+		// POG = XMLQuery + Magic Key
+		System.arraycopy(value, 0, pog, 0, value.length);
+		System.arraycopy(magickey, 0, pog, value.length, magickey.length);
+		
+		// POG is hashed using MD5
+		byte[] pog_md5 = MessageDigest.getInstance("MD5").digest(pog);
+		
+		//TODO Thing about using encryption or k as 0...
+		// Prepare encryption key
+		int j = 0;
+		for (int i = 0; i < value.length; i++){
+			j += value[i];
 		}
+		int k = (byte)(j / value.length);
+		
+		// Value is encrypted
+		for (int m = 0; m < value.length; m++)
+			value[m] = (byte) (k ^ value[m]);
+		
+		// Prepare result code
+		ByteArrayOutputStream result = new ByteArrayOutputStream();
+		
+		// Write Header
+		result.write(0x02);
+		result.write(k);
+		result.write(0x04);
+		result.write(0x00);
+		result.write(0x00);
+		result.write(0x00);
+		
+		// Write Generated MD5 of POG problaby to be used in a search cache
+		result.write(pog_md5);
+					
+		// Write encrypted value
+		result.write(value);
+		
+		// Return magic encoded query
+		return result.toByteArray();
 	}
 	
+	private static String decryptXML(String value){
+		// Get Magic key value
+		char magickey = value.charAt(1);
+		
+		// Prepare output
+		ByteArrayOutputStream neomagic = new ByteArrayOutputStream();
+		
+		// Decrypts only the XML
+		for(int i = 20; i < value.length(); i++)
+				neomagic.write((byte) (value.charAt(i) ^ magickey));
+		
+		// Return value
+		return neomagic.toString();
+	}
 	
-	// TODO Remove this function
-	// Do the inverse of magic(byte[]) should only be used for test
-	protected static String undomagic(byte[] value){
-		try {
-			byte[] code = new byte[value.length];
-			byte k;
-			k = value[1];
-			System.arraycopy(value, 0, code, 0, value.length);
-			for (int m = 22; m < value.length; m++)
-				code[m] = (byte) (k ^ value[m]);
-			ByteArrayOutputStream result = new ByteArrayOutputStream();
-			result.write(code);
-			return result.toString("UTF-8");
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+	private static ArrayList<LyricInfo>  decryptResult(String result) throws MalformedURLException{
+		// Get Decrypted XML
+		String resultXML = decryptXML(result);
+		
+		// Create array for storing the results
+		ArrayList<LyricInfo> lyrics = new ArrayList<LyricInfo>();
+		
+		// TODO Use or not use this dirt code
+		// For each tag
+		for(String tag : resultXML.split("<")) if(tag.length() > 2){
+			// Get tag name and tribute
+			tag = tag.substring(0, tag.lastIndexOf(">"));
+			int firstspace = tag.indexOf(" ");
+			String tagname = (firstspace > 0 ? tag.substring(0, firstspace) : tag);
+			String tagattribs = (firstspace > 0 ? tag.substring(firstspace) : null);
+			
+			// If tag name is...
+			if(tagname.compareTo("?xml") == 0){
+				// ignore this one
+			}else if(tagname.charAt(0) == '/'){
+				// ignore this one too
+			}else if(tagname.compareTo("return") == 0){
+				// it has to be OK
+				if(!tag.toLowerCase().contains("ok"))
+					return null;
+			}else if(tagname.compareTo("fileinfo") == 0){
+				// TODO Find a better way...
+				// Get all attributes
+				Vector<String> attrbsnames = new Vector<String>(); 
+				Vector<String> attrbsvalues = new Vector<String>();
+				for(String sth : tagattribs.split("\"")){
+					if(sth.contains("="))
+						attrbsnames.add(sth.substring(sth.lastIndexOf(' ')+1, sth.indexOf('=')));
+					else
+						attrbsvalues.add(sth);
+				}
+				
+				// Create lyric info
+				LyricInfo lyric = new LyricInfo();
+				
+				// Set each attribute
+				for(int i=0; i<attrbsnames.size(); i++){
+					if(attrbsnames.get(i).compareTo("filetype") == 0){
+						// ignore this one
+					}else if(attrbsnames.get(i).compareTo("link") == 0){
+						lyric.setLyricURL(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("filename") == 0){
+						lyric.setLyricsFileName(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("artist") == 0){
+						lyric.setMusicArtist(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("title") == 0){
+						lyric.setMusicTitle(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("album") == 0){
+						lyric.setMusicAlbum(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("uploader") == 0){
+						lyric.setLyricUploader(attrbsvalues.get(i));
+					}else if(attrbsnames.get(i).compareTo("rate") == 0){
+						lyric.setLyricRate(Double.parseDouble(attrbsvalues.get(i)));
+					}else if(attrbsnames.get(i).compareTo("ratecount") == 0){
+						lyric.setLyricRatesCount(Long.parseLong(attrbsvalues.get(i)));
+					}else if(attrbsnames.get(i).compareTo("downloads") == 0){
+						lyric.setLyricDownloadsCount(Long.parseLong(attrbsvalues.get(i)));
+					}else{
+						System.out.println("Unknow attribute: fileinfo."+attrbsnames.get(i));
+					}
+				}
+				
+				// Store lyric
+				lyrics.add(lyric);
+			}else
+				System.out.println("Unknow tag: "+tagname);
 		}
+		
+		// Return all founded lyrics
+		return lyrics;
 	}
 
 }
