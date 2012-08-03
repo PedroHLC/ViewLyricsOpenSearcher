@@ -5,7 +5,7 @@ package com.pedrohlc.viewlyricsppensearcher;
  * @author		PedroHLC
  * @email		plaracampos@hotmail.com
  * @date		(DD-MM-YYYY) FirstRls: 02-08-2012 02-06-2012 LastUpd: 03-08-2012
- * @version	0.9.01-beta
+ * @version	0.9.02-beta
  * @works		Search and get results
  */
 
@@ -74,8 +74,8 @@ public class ViewLyricsSearcher {
 			full += line;
 		}
 		
-		// Decrypt the results, store it, and return it
-		return decryptResult(full);
+		// Decrypt, parse, store, and return the result list
+		return parseResultXML(decryptResultXML(full));
 	}
 	
 	/*
@@ -126,7 +126,11 @@ public class ViewLyricsSearcher {
 		return result.toByteArray();
 	}
 	
-	private static String decryptXML(String value){
+	/*
+	 * Decrypts only the XML from the entire result
+	 */
+	
+	private static String decryptResultXML(String value){
 		// Get Magic key value
 		char magickey = value.charAt(1);
 		
@@ -141,10 +145,12 @@ public class ViewLyricsSearcher {
 		return neomagic.toString();
 	}
 	
-	private static ArrayList<LyricInfo>  decryptResult(String result) throws MalformedURLException{
-		// Get Decrypted XML
-		String resultXML = decryptXML(result);
-		
+	/*
+	 * Create the ArrayList<LyricInfo>
+	 * TODO Find a better way...
+	 */
+	
+	private static ArrayList<LyricInfo>  parseResultXML(String resultXML) throws MalformedURLException{	
 		// Create array for storing the results
 		ArrayList<LyricInfo> lyrics = new ArrayList<LyricInfo>();
 		
@@ -167,7 +173,6 @@ public class ViewLyricsSearcher {
 				if(!tag.toLowerCase().contains("ok"))
 					return null;
 			}else if(tagname.compareTo("fileinfo") == 0){
-				// TODO Find a better way...
 				// Get all attributes
 				Vector<String> attrbsnames = new Vector<String>(); 
 				Vector<String> attrbsvalues = new Vector<String>();
