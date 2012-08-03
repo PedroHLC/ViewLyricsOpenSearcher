@@ -208,6 +208,8 @@ public class ViewLyricsSearcher {
 						lyric.setLyricRatesCount(Long.parseLong(attrbsvalues.get(i)));
 					}else if(attrbsnames.get(i).compareTo("downloads") == 0){
 						lyric.setLyricDownloadsCount(Long.parseLong(attrbsvalues.get(i)));
+					}else if(attrbsnames.get(i).compareTo("timelength") == 0){
+						lyric.setMusicLenght(attrbsvalues.get(i));
 					}else{
 						System.out.println("Unknow attribute: fileinfo."+attrbsnames.get(i));
 					}
