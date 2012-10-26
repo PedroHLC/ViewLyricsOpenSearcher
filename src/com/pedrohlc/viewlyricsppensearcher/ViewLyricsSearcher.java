@@ -32,14 +32,20 @@ public class ViewLyricsSearcher {
 	private static final String url = "http://search.crintsoft.com/searchlyrics.htm";
 		//ACTUAL: http://search.crintsoft.com/searchlyrics.htm
 		//CLASSIC: http://www.viewlyrics.com:1212/searchlyrics.htm
-	private static final String searchQueryBase = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" +
-			"<search filetype=\"lyrics\" artist=\"%s\" title=\"%s\"%s />";
+	
 	private static final String clientUserAgent = "MiniLyrics";
 		//NORMAL: MiniLyrics
 		//MOBILE: MiniLyrics4Android
+	
 	private static final String clientTag = " client=\"MiniLyrics\"";
 		//NORMAL: MiniLyrics
 		//MOBILE: MiniLyricsForAndroid
+	
+	private static final String searchQueryBase = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" +
+			"<search filetype=\"lyrics\" artist=\"%s\" title=\"%s\"%s />";
+	
+	private static final String searchQueryPage = " RequestPage='%d'";
+	
 	private static final byte[] magickey = "Mlv1clt4.0".getBytes();
 	
 	/*
@@ -47,9 +53,19 @@ public class ViewLyricsSearcher {
 	 */
 	
 	public static ArrayList<LyricInfo> search(String artist, String title) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
-		// Create XMLQuery String
-		String searchQuery = String.format(searchQueryBase, artist, title, clientTag); //TODO Lean what is better: format, replace or concatenate.
-		
+		return searchQuery(
+				String.format(searchQueryBase, artist, title, clientTag) // Create XMLQuery String
+				);
+	}
+	
+	public static ArrayList<LyricInfo> search(String artist, String title, int page) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
+		return searchQuery(
+				String.format(searchQueryBase, artist, title, clientTag +
+						String.format(searchQueryPage, page))// Create XMLQuery String
+				);
+	}
+	
+	public static ArrayList<LyricInfo> searchQuery(String searchQuery) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
 		// Create Client
 		DefaultHttpClient client = new DefaultHttpClient();
 		HttpPost request = new HttpPost(url);
@@ -82,7 +98,7 @@ public class ViewLyricsSearcher {
 	 * Add MD5 and Encrypts Search Query
 	 */
 	
-	private static byte[] assembleQuery(byte[] value) throws NoSuchAlgorithmException, IOException{	
+	private static byte[] assembleQuery(byte[] value) throws NoSuchAlgorithmException, IOException{
 		// Create the variable POG to be used in a dirt code
 		byte[] pog = new byte[value.length + magickey.length]; //TODO Give a better name then POG
 		
@@ -172,6 +188,7 @@ public class ViewLyricsSearcher {
 				// it has to be OK
 				if(!tag.toLowerCase().contains("ok"))
 					return null;
+				// TODO Add PageCount detection
 			}else if(tagname.compareTo("fileinfo") == 0){
 				// Get all attributes
 				Vector<String> attrbsnames = new Vector<String>(); 

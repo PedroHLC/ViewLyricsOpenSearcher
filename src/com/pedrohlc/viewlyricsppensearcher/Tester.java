@@ -14,7 +14,7 @@ public class Tester {
 	public static void main(String[] args) {
 		//try_inverse();
 		try {
-			for(LyricInfo aresult : ViewLyricsSearcher.search("The Smashing Pumpkins", "Cherub Rock"))
+			for(LyricInfo aresult : ViewLyricsSearcher.search("Foo Fighters", "", 2)) //Artist, Title, Page
 				System.out.println(aresult.dump());
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
