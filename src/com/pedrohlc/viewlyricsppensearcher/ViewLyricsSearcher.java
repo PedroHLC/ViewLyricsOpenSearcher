@@ -52,20 +52,21 @@ public class ViewLyricsSearcher {
 	 * Search function
 	 */
 	
+	@Deprecated
 	public static ArrayList<LyricInfo> search(String artist, String title) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
 		return searchQuery(
 				String.format(searchQueryBase, artist, title, clientTag) // Create XMLQuery String
-				);
+				).getLyricsInfo();
 	}
 	
-	public static ArrayList<LyricInfo> search(String artist, String title, int page) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
+	public static Result search(String artist, String title, int page) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
 		return searchQuery(
 				String.format(searchQueryBase, artist, title, clientTag +
-						String.format(searchQueryPage, page))// Create XMLQuery String
+						String.format(searchQueryPage, page)) // Create XMLQuery String
 				);
 	}
 	
-	public static ArrayList<LyricInfo> searchQuery(String searchQuery) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
+	private static Result searchQuery(String searchQuery) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
 		// Create Client
 		DefaultHttpClient client = new DefaultHttpClient();
 		HttpPost request = new HttpPost(url);
@@ -166,7 +167,9 @@ public class ViewLyricsSearcher {
 	 * TODO Find a better way...
 	 */
 	
-	private static ArrayList<LyricInfo>  parseResultXML(String resultXML) throws MalformedURLException{	
+	private static Result parseResultXML(String resultXML) throws MalformedURLException{
+		Result result = new Result();
+		
 		// Create array for storing the results
 		ArrayList<LyricInfo> lyrics = new ArrayList<LyricInfo>();
 		
@@ -179,6 +182,17 @@ public class ViewLyricsSearcher {
 			String tagname = (firstspace > 0 ? tag.substring(0, firstspace) : tag);
 			String tagattribs = (firstspace > 0 ? tag.substring(firstspace) : null);
 			
+			// Get all attributes
+			Vector<String> attrbsnames = new Vector<String>(); 
+			Vector<String> attrbsvalues = new Vector<String>();
+			if(tagattribs != null)
+				for(String sth : tagattribs.split("\"")){
+					if(sth.contains("="))
+						attrbsnames.add(sth.substring(sth.lastIndexOf(' ')+1, sth.indexOf('=')).toLowerCase());
+					else
+						attrbsvalues.add(sth);
+				}
+			
 			// If tag name is...
 			if(tagname.compareTo("?xml") == 0){
 				// ignore this one
@@ -188,17 +202,17 @@ public class ViewLyricsSearcher {
 				// it has to be OK
 				if(!tag.toLowerCase().contains("ok"))
 					return null;
-				// TODO Add PageCount detection
-			}else if(tagname.compareTo("fileinfo") == 0){
-				// Get all attributes
-				Vector<String> attrbsnames = new Vector<String>(); 
-				Vector<String> attrbsvalues = new Vector<String>();
-				for(String sth : tagattribs.split("\"")){
-					if(sth.contains("="))
-						attrbsnames.add(sth.substring(sth.lastIndexOf(' ')+1, sth.indexOf('=')));
-					else
-						attrbsvalues.add(sth);
+				for(int i=0; i<attrbsnames.size(); i++){
+					if(attrbsnames.get(i).compareTo("pagecount") == 0){
+						result.setPageCount(Integer.parseInt(attrbsvalues.get(i)));
+					}else if(attrbsnames.get(i).compareTo("curpage") == 0){
+						result.setCurrentPage(Integer.parseInt(attrbsvalues.get(i)));
+					}else if(attrbsnames.get(i).compareTo("result") == 0){
+						result.setValid(attrbsvalues.get(i).toLowerCase().compareTo("ok") == 0);
+					}
 				}
+				System.out.println(tag);
+			}else if(tagname.compareTo("fileinfo") == 0){
 				
 				// Create lyric info
 				LyricInfo lyric = new LyricInfo();
@@ -238,8 +252,10 @@ public class ViewLyricsSearcher {
 				System.out.println("Unknow tag: "+tagname);
 		}
 		
-		// Return all founded lyrics
-		return lyrics;
+		// Add all founded lyrics founded to result
+		result.setLyricsInfo(lyrics);
+		
+		return result;
 	}
 
 }
