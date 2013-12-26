@@ -6,8 +6,8 @@
   */
 
 $search_url = "http://search.crintsoft.com/searchlyrics.htm";
-$search_query_base = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><search filetype=\"lyrics\" artist=\"%s\" title=\"%s\" client=\"MiniLyrics\" />";
-$search_useragent = "MiniLyrics";
+$search_query_base = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><search filetype=\"lyrics\" artist=\"%s\" title=\"%s\" client=\"MiniLyricsForAndroid\" />";
+$search_useragent = "MiniLyrics4Android";
 $search_md5watermark = "Mlv1clt4.0";
 
 if(isset($_GET["title"])){

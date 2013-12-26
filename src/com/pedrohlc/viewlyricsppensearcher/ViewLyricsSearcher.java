@@ -33,11 +33,11 @@ public class ViewLyricsSearcher {
 		//ACTUAL: http://search.crintsoft.com/searchlyrics.htm
 		//CLASSIC: http://www.viewlyrics.com:1212/searchlyrics.htm
 	
-	private static final String clientUserAgent = "MiniLyrics";
+	private static final String clientUserAgent = "MiniLyrics4Android";
 		//NORMAL: MiniLyrics
 		//MOBILE: MiniLyrics4Android
 	
-	private static final String clientTag = " client=\"MiniLyrics\"";
+	private static final String clientTag = " client=\"MiniLyricsForAndroid\"";
 		//NORMAL: MiniLyrics
 		//MOBILE: MiniLyricsForAndroid
 	
