@@ -83,13 +83,16 @@ public class ViewLyricsSearcher {
 		
 		// Get the response
 		BufferedReader rd = new BufferedReader
-			(new InputStreamReader(response.getEntity().getContent()));
+			(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
 		
 		// Get full result
-		String full = "", line = null;
-		while ((line = rd.readLine()) != null) {
-			full += line;
+		StringBuilder builder = new StringBuilder();
+		char[] buffer = new char[8192];
+		int read;
+		while ((read = rd.read(buffer, 0, buffer.length)) > 0) {
+			builder.append(buffer, 0, read);
 		}
+		String full = builder.toString();
 		
 		// Decrypt, parse, store, and return the result list
 		return parseResultXML(decryptResultXML(full));
