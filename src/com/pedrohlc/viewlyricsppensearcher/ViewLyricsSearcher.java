@@ -10,21 +10,31 @@ package com.pedrohlc.viewlyricsppensearcher;
  */
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Vector;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.TextUtils;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
+@SuppressWarnings("deprecation")
 public class ViewLyricsSearcher {
 	/*
 	 * Needed data
@@ -33,16 +43,16 @@ public class ViewLyricsSearcher {
 		//ACTUAL: http://search.crintsoft.com/searchlyrics.htm
 		//CLASSIC: http://www.viewlyrics.com:1212/searchlyrics.htm
 	
-	private static final String clientUserAgent = "MiniLyrics4Android";
-		//NORMAL: MiniLyrics
+	private static final String clientUserAgent = "MiniLyrics";
+		//NORMAL: MiniLyrics <version> for <player>
+		//EXAMPLE: MiniLyrics 7.6.44 for Windows Media Player
 		//MOBILE: MiniLyrics4Android
 	
-	private static final String clientTag = " client=\"MiniLyricsForAndroid\"";
+	private static final String clientTag = "client=\"ViewLyricsOpenSearcher\"";
 		//NORMAL: MiniLyrics
 		//MOBILE: MiniLyricsForAndroid
 	
-	private static final String searchQueryBase = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" +
-			"<search filetype=\"lyrics\" artist=\"%s\" title=\"%s\"%s />";
+	private static final String searchQueryBase = "<?xml version='1.0' encoding='utf-8' ?><searchV1 artist=\"%s\" title=\"%s\" OnlyMatched=\"1\" %s/>";
 	
 	private static final String searchQueryPage = " RequestPage='%d'";
 	
@@ -52,21 +62,15 @@ public class ViewLyricsSearcher {
 	 * Search function
 	 */
 	
-	@Deprecated
-	public static ArrayList<LyricInfo> search(String artist, String title) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
-		return searchQuery(
-				String.format(searchQueryBase, artist, title, clientTag) // Create XMLQuery String
-				).getLyricsInfo();
-	}
-	
-	public static Result search(String artist, String title, int page) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
+	public static Result search(String artist, String title, int page) throws ClientProtocolException, IOException, NoSuchAlgorithmException, SAXException, ParserConfigurationException {
 		return searchQuery(
 				String.format(searchQueryBase, artist, title, clientTag +
 						String.format(searchQueryPage, page)) // Create XMLQuery String
 				);
 	}
 	
-	private static Result searchQuery(String searchQuery) throws ClientProtocolException, IOException, NoSuchAlgorithmException {
+	@SuppressWarnings("resource")
+	private static Result searchQuery(String searchQuery) throws ClientProtocolException, IOException, NoSuchAlgorithmException, SAXException, ParserConfigurationException {
 		// Create Client
 		DefaultHttpClient client = new DefaultHttpClient();
 		HttpPost request = new HttpPost(url);
@@ -77,6 +81,7 @@ public class ViewLyricsSearcher {
 		
 		// Define POST Entity as a magic encoded version of XMLQuery
 		request.setEntity(new ByteArrayEntity(assembleQuery(searchQuery.getBytes("UTF-8"))));
+		
 		
 		// Send Request
 		HttpResponse response = client.execute(request);
@@ -102,7 +107,7 @@ public class ViewLyricsSearcher {
 	 * Add MD5 and Encrypts Search Query
 	 */
 	
-	private static byte[] assembleQuery(byte[] value) throws NoSuchAlgorithmException, IOException{
+	public static byte[] assembleQuery(byte[] value) throws NoSuchAlgorithmException, IOException{
 		// Create the variable POG to be used in a dirt code
 		byte[] pog = new byte[value.length + magickey.length]; //TODO Give a better name then POG
 		
@@ -150,7 +155,7 @@ public class ViewLyricsSearcher {
 	 * Decrypts only the XML from the entire result
 	 */
 	
-	private static String decryptResultXML(String value){
+	public static String decryptResultXML(String value){
 		// Get Magic key value
 		char magickey = value.charAt(1);
 		
@@ -158,7 +163,7 @@ public class ViewLyricsSearcher {
 		ByteArrayOutputStream neomagic = new ByteArrayOutputStream();
 		
 		// Decrypts only the XML
-		for(int i = 20; i < value.length(); i++)
+		for(int i = 21; i < value.length(); i++)
 				neomagic.write((byte) (value.charAt(i) ^ magickey));
 		
 		// Return value
@@ -167,96 +172,75 @@ public class ViewLyricsSearcher {
 	
 	/*
 	 * Create the ArrayList<LyricInfo>
-	 * TODO Find a better way...
 	 */
 	
-	private static Result parseResultXML(String resultXML) throws MalformedURLException{
+	private static int readIntFromAttr(Element elem, String attr, int def) {
+		String data = elem.getAttribute(attr);
+		try {
+			if(!TextUtils.isEmpty(data))
+				return Integer.valueOf(data).intValue();
+		}catch (NumberFormatException e) { e.printStackTrace(); }
+		return def;
+	}
+	
+	private static double readFloatFromAttr(Element elem, String attr, float def) {
+		String data = elem.getAttribute(attr);
+		try {
+			if(!TextUtils.isEmpty(data))
+				return Double.valueOf(data).doubleValue();
+		}catch (NumberFormatException e) {}
+		return def;
+	}
+	
+	private static String readStrFromAttr(Element elem, String attr, String def) {
+		String data = elem.getAttribute(attr);
+		try {
+			if(!TextUtils.isEmpty(data))
+				return data;
+		}catch (NumberFormatException e) {}
+		return def;
+	}
+	
+	public static Result parseResultXML(String resultXML) throws SAXException, IOException, ParserConfigurationException{
 		Result result = new Result();
 		
 		// Create array for storing the results
-		ArrayList<LyricInfo> lyrics = new ArrayList<LyricInfo>();
+		ArrayList<LyricInfo> availableLyrics = new ArrayList<LyricInfo>();
 		
-		// TODO Use or not use this dirt code
-		// For each tag
-		for(String tag : resultXML.split("<")) if(tag.length() > 2){
-			// Get tag name and tribute
-			tag = tag.substring(0, tag.lastIndexOf(">"));
-			int firstspace = tag.indexOf(" ");
-			String tagname = (firstspace > 0 ? tag.substring(0, firstspace) : tag);
-			String tagattribs = (firstspace > 0 ? tag.substring(firstspace) : null);
-			
-			// Get all attributes
-			Vector<String> attrbsnames = new Vector<String>(); 
-			Vector<String> attrbsvalues = new Vector<String>();
-			if(tagattribs != null)
-				for(String sth : tagattribs.split("\"")){
-					if(sth.contains("="))
-						attrbsnames.add(sth.substring(sth.lastIndexOf(' ')+1, sth.indexOf('=')).toLowerCase());
-					else
-						attrbsvalues.add(sth);
-				}
-			
-			// If tag name is...
-			if(tagname.compareTo("?xml") == 0){
-				// ignore this one
-			}else if(tagname.charAt(0) == '/'){
-				// ignore this one too
-			}else if(tagname.compareTo("return") == 0){
-				// it has to be OK
-				if(!tag.toLowerCase().contains("ok"))
-					return null;
-				for(int i=0; i<attrbsnames.size(); i++){
-					if(attrbsnames.get(i).compareTo("pagecount") == 0){
-						result.setPageCount(Integer.parseInt(attrbsvalues.get(i)));
-					}else if(attrbsnames.get(i).compareTo("curpage") == 0){
-						result.setCurrentPage(Integer.parseInt(attrbsvalues.get(i)));
-					}else if(attrbsnames.get(i).compareTo("result") == 0){
-						result.setValid(attrbsvalues.get(i).toLowerCase().compareTo("ok") == 0);
-					}
-				}
-				System.out.println(tag);
-			}else if(tagname.compareTo("fileinfo") == 0){
-				
-				// Create lyric info
-				LyricInfo lyric = new LyricInfo();
-				
-				// Set each attribute
-				for(int i=0; i<attrbsnames.size(); i++){
-					if(attrbsnames.get(i).compareTo("filetype") == 0){
-						// ignore this one
-					}else if(attrbsnames.get(i).compareTo("link") == 0){
-						lyric.setLyricURL(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("filename") == 0){
-						lyric.setLyricsFileName(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("artist") == 0){
-						lyric.setMusicArtist(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("title") == 0){
-						lyric.setMusicTitle(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("album") == 0){
-						lyric.setMusicAlbum(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("uploader") == 0){
-						lyric.setLyricUploader(attrbsvalues.get(i));
-					}else if(attrbsnames.get(i).compareTo("rate") == 0){
-						lyric.setLyricRate(Double.parseDouble(attrbsvalues.get(i)));
-					}else if(attrbsnames.get(i).compareTo("ratecount") == 0){
-						lyric.setLyricRatesCount(Long.parseLong(attrbsvalues.get(i)));
-					}else if(attrbsnames.get(i).compareTo("downloads") == 0){
-						lyric.setLyricDownloadsCount(Long.parseLong(attrbsvalues.get(i)));
-					}else if(attrbsnames.get(i).compareTo("timelength") == 0){
-						lyric.setMusicLenght(attrbsvalues.get(i));
-					}else{
-						System.out.println("Unknow attribute: fileinfo."+attrbsnames.get(i));
-					}
-				}
-				
-				// Store lyric
-				lyrics.add(lyric);
-			}else
-				System.out.println("Unknow tag: "+tagname);
-		}
+		// Parse XML
+		ByteArrayInputStream resultBA = new ByteArrayInputStream(resultXML.getBytes("UTF-8"));
+	    Element resultRootElem = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(resultBA).getDocumentElement();
+	    	
+	    result.setCurrentPage(readIntFromAttr(resultRootElem, "CurPage", 0));
+	    result.setPageCount(readIntFromAttr(resultRootElem, "PageCount", 1));
+	    String server_url = readStrFromAttr(resultRootElem, "server_url", "http://www.viewlyrics.com/");
+	    //result.setMessage(readStrFromAttr(resultRootElem, "message", ""));
+	    
+	    NodeList resultItemList = resultRootElem.getElementsByTagName("fileinfo");
+	    for (int i = 0; i < resultItemList.getLength(); i++) {
+	    	Element itemElem = (Element)resultItemList.item(i);
+	    	LyricInfo itemInfo = new LyricInfo();
+	    	
+	    	
+	    	itemInfo.setLyricURL(server_url+readStrFromAttr(itemElem, "link", ""));
+	    	itemInfo.setMusicArtist(readStrFromAttr(itemElem, "artist", ""));
+	    	itemInfo.setMusicTitle(readStrFromAttr(itemElem, "title", ""));
+	    	itemInfo.setMusicAlbum(readStrFromAttr(itemElem, "album", ""));
+	    	itemInfo.setLyricsFileName(readStrFromAttr(itemElem, "filename", ""));
+	    	itemInfo.setLyricUploader(readStrFromAttr(itemElem, "uploader", ""));
+	    	itemInfo.setLyricRate(readFloatFromAttr(itemElem, "rate", 0.0F));
+	    	itemInfo.setLyricRatesCount(readIntFromAttr(itemElem, "ratecount", 0));
+	    	itemInfo.setLyricDownloadsCount(readIntFromAttr(itemElem, "downloads", 0));
+	    	//itemInfo.setFType(readIntFromAttr(itemElem, "file_type", 0));
+	    	//itemInfo.setMatchVal(readFloatFromAttr(itemElem, "match_value", 0.0F));
+	    	//itemInfo.setTimeLenght(readIntFromAttr(itemElem, "timelength", 0));
+	   
+	    	
+	    	availableLyrics.add(itemInfo);
+	    }
 		
 		// Add all founded lyrics founded to result
-		result.setLyricsInfo(lyrics);
+		result.setLyricsInfo(availableLyrics);
 		
 		return result;
 	}

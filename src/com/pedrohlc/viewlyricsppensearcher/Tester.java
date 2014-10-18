@@ -1,9 +1,13 @@
 package com.pedrohlc.viewlyricsppensearcher;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 
-import org.apache.http.client.ClientProtocolException;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.xml.sax.SAXException;
 
 
 public class Tester {
@@ -14,13 +18,9 @@ public class Tester {
 	public static void main(String[] args) {
 		//try_inverse();
 		try {
-			for(LyricInfo aresult : ViewLyricsSearcher.search("Foo Fighters", "", 0).getLyricsInfo()) //Artist, Title, Page
+			for(LyricInfo aresult : ViewLyricsSearcher.search("Foo Fighters", "", 2).getLyricsInfo()) //Artist, Title, Page
 				System.out.println(aresult.dump());
-		} catch (ClientProtocolException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
+		} catch (IOException | NoSuchAlgorithmException | SAXException | ParserConfigurationException e) {
 			e.printStackTrace();
 		}
 	}
