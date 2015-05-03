@@ -23,7 +23,7 @@ if(isset($_GET["artist"])){
 }
 
 if(strlen($title) < 1 && strlen($artist) < 1){
-  print "<html><body><form action=\"#\" method=\"GET\">Artist: <input name=\"artist\" /><br />Title: <input name=\"title\" /><br /><input type=\"submit\" /></form></body></html>";
+  print "<html><body><form action=\"#\" method=\"GET\">Artist: <input name=\"artist\" /><br />Title: <input name=\"title\" /><br />Output Type: <input type=\"radio\" name=\"type\" value=\"xml\" checked /> XML<input type=\"radio\" name=\"type\" value=\"html\" /> HTML<br /><input type=\"submit\" /></form></body></html>";
   exit(0);
 }
 
@@ -89,7 +89,14 @@ function vl_dec($data){
 if(!$search_result){
   print "FAILED";
 }else{
-  echo vl_dec($search_result);
-  print "\nThis page uses XML, you can see it in this file source (Ctrl+U).";
+  if ( $_GET['type']=='xml' ||
+       $_GET['type']=='XML' ||
+       $_GET['type']=='' ||
+       !isset($_GET['type']) ) {
+    echo vl_dec($search_result);
+    print "\nThis page uses XML, you can see it in this file source (Ctrl+U).";
+  } else {
+    echo "<pre>".nl2br(htmlentities(vl_dec($search_result)))."</pre>";
+  }
 }
 ?>
