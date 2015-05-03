@@ -89,7 +89,6 @@ function vl_dec($data){
 if(!$search_result){
   print "FAILED";
 }else{
-  echo vl_dec($search_result);
-  print "\nThis page uses XML, you can see it in this file source (Ctrl+U).";
+  echo "<pre>".nl2br(htmlentities(vl_dec($search_result)))."</pre>";
 }
 ?>
