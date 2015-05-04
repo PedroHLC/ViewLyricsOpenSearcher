@@ -3,9 +3,9 @@ package com.pedrohlc.viewlyricsppensearcher;
 /**
  * @title		ViewLyricsSearcher
  * @author		PedroHLC
- * @email		plaracampos@hotmail.com
+ * @email		pedro.laracampos@gmail.com
  * @date		(DD-MM-YYYY) FirstRls: 02-08-2012 02-06-2012 LastUpd: 03-08-2012
- * @version	0.9.02-beta
+ * @version		0.9.03-beta
  * @works		Search and get results
  */
 
@@ -14,8 +14,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -30,7 +28,6 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.TextUtils;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
@@ -88,7 +85,7 @@ public class ViewLyricsSearcher {
 		
 		// Get the response
 		BufferedReader rd = new BufferedReader
-			(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+			(new InputStreamReader(response.getEntity().getContent(), "ISO_8859_1"));
 		
 		// Get full result
 		StringBuilder builder = new StringBuilder();
@@ -163,7 +160,7 @@ public class ViewLyricsSearcher {
 		ByteArrayOutputStream neomagic = new ByteArrayOutputStream();
 		
 		// Decrypts only the XML
-		for(int i = 21; i < value.length(); i++)
+		for(int i = 22; i < value.length(); i++)
 				neomagic.write((byte) (value.charAt(i) ^ magickey));
 		
 		// Return value
